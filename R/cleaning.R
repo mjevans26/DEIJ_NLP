@@ -5,7 +5,7 @@ library(tidyr)
 dat <- read.csv(file = 'data/LIsteningTourResponses.csv', header = TRUE, stringsAsFactors = FALSE)
 source(file ='functions.R')
 
-# 1. TEXT CLEANING
+# TEXT CLEANING
 
 # eliminate/expand contractions
 dat$Statement <- sapply(dat$Statement, fix_contractions)
