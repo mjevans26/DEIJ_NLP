@@ -53,3 +53,13 @@ top_terms_per_topic <- function(lda_model, num_words) {
   title <- paste("LDA Top Terms for", k, "Topics")
   return(top_terms)
 }
+
+#' function to perform the silhouette test on kmeans output
+#' @param k number of clusters to test
+#' @param d document term matrix
+#' @return mean silhouette score
+silhouette_test <- function(k, d){
+  km <- kmeans(d, k)
+  ss <- silhouette(km$cluster, dist(d))
+  return(mean(ss[,3]))
+}

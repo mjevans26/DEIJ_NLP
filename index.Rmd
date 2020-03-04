@@ -1,0 +1,118 @@
+---
+title: "Exploring DEIJ Opportunities with Machine Learning"
+author: "Michael Evans"
+date: "March 2, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(cleanNLP)
+library(cluster)
+library(dplyr)
+library(plotly)
+library(tidytext)
+library(tidyr)
+library(tm)
+library(topicmodels)
+
+source(file = 'R/functions.R')
+dat <- readRDS(file = 'data/data.rds')
+
+
+```
+
+## Diversity, Equity, Inclusion & Jusctice
+
+Defenders of Wildlife is committed to becoming a more diverse, equitable, and inclusive organization and strives to be a leader in this space among environmental NGOs 
+
+As a first step, members of the DEIJ working group conducted a 'listening tour' in which we spoke with staff in different deparments to understand where opportunities for growth exist in the organization. Staff had a lot of constructive thoughts, and distilling thesei ntoa ctionable themes quickly became a challenge.
+
+To assist this process, we leveraged machine learning.
+
+
+```{r cars}
+head(dat)
+```
+
+Statements were divided into effors currently underway in the deparment, and opportunities that staff members saw for the organization to improve its DEIJ efforts.  Because were most interested in setting goals for future work, in these analyses we focused only on the 'Opportunity' statements. 
+
+## Processing
+
+To make
+
+```{r processing, echo = TRUE}
+# some words will come up frequently that are not helpful
+unhelpful_words <- c("defenders",
+                     "deij",
+                     "diversity",
+                     "wildlife",
+                     "diverse")
+
+# TOKENIZE DATA
+# single words
+dat_tokenized <- dat %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) %>%
+  distinct() %>%
+  filter(!word %in% unhelpful_words) %>%
+  filter(nchar(word) > 3)
+```
+
+We can also create 'bigrams' - phrases consisting of two words
+
+```{r bigrams, echo = TRUE}
+# pull out 2-word phrases from all statements
+bigrams <- dat %>%
+  unnest_tokens(bigram, text, token = "ngrams", n = 2)
+
+# separate word pairs so we can filter out unwanted words
+bigrams_separated <- bigrams %>%
+  separate(bigram, c("word1", "word2"), sep = " ")
+
+# filter stop words from each half and pairs with the same word
+bigrams_filtered <- bigrams_separated %>%
+  filter(!word1 %in% stop_words$word, !word2 %in% stop_words$word) %>%
+  filter(!word1 %in% unhelpful_words, !word2 %in% unhelpful_words)%>%
+  filter(word1 != word2)
+
+# rejoin bigrams and tally by department
+bigram_counts <- bigrams_filtered %>%
+  # recombine the bigrams
+  unite(bigram, word1, word2, sep = " ") %>%
+  # filter out current efforts
+  filter(Category != 'Efforts')%>%
+  # group by bigram and department then add count and sort
+  count(bigram, sort = TRUE) %>%
+  # count ungroups, so re-group by department (optional)
+  #group_by(Department) %>%
+  slice(seq_len(10)) %>%
+  #ungroup() %>%
+  arrange(n) %>%
+  mutate(row = row_number())
+```
+
+
+## Results
+
+First, it's somewhat informative to see the most common words:
+
+```{r pressure, echo=FALSE}
+dat_tokenized%>%
+  filter(Category != 'Effort')%>%
+  count(word, sort = TRUE)%>%
+  top_n(10)%>%
+  mutate(word = reorder(word, n))%>%
+  plot_ly(type = 'bar', y = ~word, x = ~n,
+          orientation = 'h')%>%
+  layout(barmode = 'stack')
+```
+
+And the most common bigrams
+```{r common_bigrams, echo = FALSE}
+# lets see the most frequently used bigrams
+bigram_counts%>%
+  plot_ly(type = 'bar', y = ~bigram, x = ~n,
+          orientation = 'h')%>%
+  layout(barmode = 'stack')
+```
+
