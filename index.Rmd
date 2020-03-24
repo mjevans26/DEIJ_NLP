@@ -9,6 +9,7 @@ output: html_document
 library(cleanNLP)
 library(cluster)
 library(dplyr)
+library(DT)
 library(plotly)
 library(tidytext)
 library(tidyr)
@@ -16,103 +17,306 @@ library(tm)
 library(topicmodels)
 
 source(file = 'R/functions.R')
-dat <- readRDS(file = 'data/data.rds')
+load('data/data.Rdata')
+#dat <- readRDS(file = 'data/data.rds')
 
+# define some styling parameters for graphs
+tlf <- list(color = 'black', size = 14)
+tkf <- list(color = 'black', size = 12)
 
+# set seed for repeatability
+seed <- 1024
 ```
 
 ## Diversity, Equity, Inclusion & Jusctice
 
-Defenders of Wildlife is committed to becoming a more diverse, equitable, and inclusive organization and strives to be a leader in this space among environmental NGOs 
+Defenders of Wildlife is committed to becoming a more diverse, equitable, and inclusive organization and strives to be a leader in these efforts among environmental NGOs. The diversity, equity, inclusion and justice (DEIJ) working group was formed to help guide Defenders' efforts along this path.
 
-As a first step, members of the DEIJ working group conducted a 'listening tour' in which we spoke with staff in different deparments to understand where opportunities for growth exist in the organization. Staff had a lot of constructive thoughts, and distilling thesei ntoa ctionable themes quickly became a challenge.
+As a first step, the DEIJ working group conducted an organizational 'listening tour' in which members spoke with staff in each of Defenders' departments and field offices to understand the landscape of current efforts and identify where staff saw opportunities for growth in the organization. Defenders' staff had a lot of constructive thoughts, and distilling these ideas into actionable themes quickly became a challenge.
 
-To assist this process, we leveraged machine learning.
+To help with the theme-extraction process, we decided to try using a field of machine learning called 'Natural Language Processing' (NLP). The discipline of NLP covers a collection of techniques to automate the extraction of themes, sentiments, and associations from text. Our goal is to use these insights to help identify cohesive themes in the opportunities for improvement in Defenders' DEIJ practices as expressed by staff across departments. The DEIJ working group will use this insight to identify and design the initiatives we will focus on in the coming year.
 
+## Data processing
 
-```{r cars}
-head(dat)
+Statements were divided into efforts currently underway in the department, and opportunities that staff members saw for the organization to improve its DEIJ efforts.  Because we're most interested in setting goals for future work, in these analyses we focused only on the 'Opportunity' statements.
+
+For these statements to be useful, we have to pre-process all the raw responses. We standardized language by making all characters lowercase, removing punctuation, and fixing contractions.
+
+```{r input_data, echo = FALSE}
+datatable(dat[,c(1,2,4)],
+          rownames = FALSE,
+          colnames = c('Dept.', 'Category', 'Satement'),
+          caption = 'Table 1. Example responses from listening tour',
+          options = list(
+            dom = 't'
+          ))
 ```
 
-Statements were divided into effors currently underway in the deparment, and opportunities that staff members saw for the organization to improve its DEIJ efforts.  Because were most interested in setting goals for future work, in these analyses we focused only on the 'Opportunity' statements. 
+Because the goal of NLP is to identify themes and sentiments using the frequency of terms and their associations, it is helpful to remove common words that (usually) do not add meaning.  There is a standard library of these words, and we added a few that also fit these criteria (e.g. 'Defenders', 'Wildlife', etc.). Finally, we 'tokenize' the data - breaking each statement into individual words or phrases. This resulted in `r nrow(dat_tokenized)` single words.
 
-## Processing
-
-To make
-
-```{r processing, echo = TRUE}
-# some words will come up frequently that are not helpful
-unhelpful_words <- c("defenders",
-                     "deij",
-                     "diversity",
-                     "wildlife",
-                     "diverse")
-
-# TOKENIZE DATA
-# single words
-dat_tokenized <- dat %>%
-  unnest_tokens(word, text) %>%
-  anti_join(stop_words) %>%
-  distinct() %>%
-  filter(!word %in% unhelpful_words) %>%
-  filter(nchar(word) > 3)
+```{r tokenization, echo = FALSE}
+datatable(dat_tokenized[, c(1,3,4)],
+          rownames = FALSE,
+          colnames = c('Dept.', 'Statement', 'Term'),
+          caption = 'Table 2. Example terms from listening tour data.',
+          options = list(
+            dom = 't'
+          )
+)
 ```
 
-We can also create 'bigrams' - phrases consisting of two words
+## Term frequency
 
-```{r bigrams, echo = TRUE}
-# pull out 2-word phrases from all statements
-bigrams <- dat %>%
-  unnest_tokens(bigram, text, token = "ngrams", n = 2)
+Now that we have our listening tour statements broken down into individual (hopefully) meaningful tokens, the first thing we can do is look at the most common terms in these statements. Here are the top 10 single words.
 
-# separate word pairs so we can filter out unwanted words
-bigrams_separated <- bigrams %>%
-  separate(bigram, c("word1", "word2"), sep = " ")
-
-# filter stop words from each half and pairs with the same word
-bigrams_filtered <- bigrams_separated %>%
-  filter(!word1 %in% stop_words$word, !word2 %in% stop_words$word) %>%
-  filter(!word1 %in% unhelpful_words, !word2 %in% unhelpful_words)%>%
-  filter(word1 != word2)
-
-# rejoin bigrams and tally by department
-bigram_counts <- bigrams_filtered %>%
-  # recombine the bigrams
-  unite(bigram, word1, word2, sep = " ") %>%
-  # filter out current efforts
-  filter(Category != 'Efforts')%>%
-  # group by bigram and department then add count and sort
-  count(bigram, sort = TRUE) %>%
-  # count ungroups, so re-group by department (optional)
-  #group_by(Department) %>%
-  slice(seq_len(10)) %>%
-  #ungroup() %>%
-  arrange(n) %>%
-  mutate(row = row_number())
-```
-
-
-## Results
-
-First, it's somewhat informative to see the most common words:
-
-```{r pressure, echo=FALSE}
+```{r term_counts, warnings = FALSE, echo = FALSE}
+# lets see the most frequently used words
 dat_tokenized%>%
-  filter(Category != 'Effort')%>%
+  filter(Category != 'Efforts')%>%
   count(word, sort = TRUE)%>%
   top_n(10)%>%
   mutate(word = reorder(word, n))%>%
   plot_ly(type = 'bar', y = ~word, x = ~n,
-          orientation = 'h')%>%
-  layout(barmode = 'stack')
+          orientation = 'h',
+          marker = list(color = '#005596'))%>%
+  layout(
+    xaxis = list(
+      title = 'Frequency',
+      titlefont = tlf,
+      tickfont = tkf,
+      showgrid = FALSE,
+      linewidth = 1
+    ),
+    yaxis = list(
+      title = 'Term',
+      titlefont = tlf,
+      tickfont = tkf,
+      showticklabels = FALSE
+    ),
+    title = 'Top 10 Most Common Terms',
+    titlefont = list(color = 'black', size = 16)
+  )%>%
+  add_annotations(
+    text = ~word,
+    showarrow = FALSE,
+    x = ~n,
+    xanchor = 'right',
+    font = list(color = 'white')
+  )
 ```
 
-And the most common bigrams
-```{r common_bigrams, echo = FALSE}
+These terms give us some idea of the thematic concepts expressed in the listening tour, such as engagement with communities and training.
+
+## Cluster analysis
+
+The frequencies of terms in listening tour responses has given us a good idea of where opportunities for DEIJ improvements across Defenders might exist.  A more sophisticated analysis is to use the same data and automatically identify inherent thematic clusters. There are several techniques available for this task, and each uses the frequency of co-occurrence of different terms across responses to cluster terms together. We can then interpret the theme represented by each cluster by examining the words they contain.
+
+*Note: these methods usually require large (>10,000 records) datasets, and so our use here with `r nrow(dat_tokenized)` data points is somewhat experimental.*
+
+### How many themes?
+
+But how many themes are present in the responses? The first step in this analysis is to group our data into progressively greater number of clusters, and use a measure of cohesion to see which is most supported. Here we use the silhouette test, which compares the dissimilarity within clusters to that between clusters. Lower scores indicate stronger support, and we choose the cluster number (k) at which the rate of decline plateaus. This provides a balance between likelihood and simplicity of interpretation.
+
+```{r k, warnings = FALSE, echo = FALSE}
+# calculate average silhouette value for a series of ks
+avg_sil <- sapply(2:20, function(x){silhouette_test(x, dt_mat)})
+
+plot_ly(type = 'scatter', mode = 'lines', x = 2:20, y = avg_sil)%>%
+  layout(yaxis = list(title = 'Silhouette score', range = c(0, 0.5)))
+
+k <- 7
+```
+
+This graph tells us that the most likely number of thematic clusters for single terms is `r k`. Assuming `r k` groups, we can use an algorithm called 'Latent Dirichlet Allocation' to assign terms to each of 7 clusers based on how frequenly different terms appear together. Plotting the terms most strongly associated with each cluster gives us an idea of the 'themes' captured in each cluster.
+
+```{r lda, warnings = FALSE, echo = FALSE}
+lda <- topicmodels::LDA(dt_mat, k = k, method = "GIBBS", control = list(seed = seed))
+
+# return the probability per term of inclusion in each topic
+betas <- tidy(lda, matrix = 'beta')
+
+# get the top terms per topic
+topic_terms <- top_terms_per_topic(lda, 7)
+
+subplot(lapply(unique(topic_terms$topic), function(i){
+  if(i == 'Topic 1'){
+    col <- c(rep('black', 6), 'white')
+    anchor <- c(rep('left', 6), 'right')
+  }else{
+    col <- 'black'
+    anchor <- 'left'
+  }
+  plot_ly(data = filter(topic_terms, topic == i)%>%
+            mutate(term = reorder(term, beta)),
+          type = 'bar', y = ~term, x = ~beta,
+          orientation = 'h',
+          name = i)%>%
+    layout(xaxis = list(range = c(0, max(betas$beta)),
+                        showgrid = FALSE,
+                        linewidth = 1),
+           yaxis = list(showticklabels = FALSE),
+           margin = list(r = 100))%>%
+    add_annotations(
+      text = ~term,
+      x = ~beta,
+      xanchor = anchor,
+      font = list(color = c(rep('black', 6), 'white')),
+      showarrow = FALSE
+    )
+  }),
+  nrows = (k%/%2) + (k%%2))%>%
+  layout(title = paste('Terms (k = ', k, ')', sep = ""))
+```
+
+Clustering analyses require human interpretation to make sense of the clusters that emerge, based on the words they contain. In this small dataset, some of the clusters are more ambiguous than others - however there appear to be several clear themes. For instance, Topic 1 contains terms related to community outreach and engagmenent. Topic 7 seems to include words related to personnel practices, and Topic 6 encapsulates expanding Defenders' audience. Seeing the terms that co-occur frequently in staff responses is a starting point for understanding the common themes being expressed.
+
+## Two-word phrases
+
+Thus far, we've only looked at single terms to understand the topics present in our listening tour responses. It can also be informative to examine two word phrases, or bigrams. In the listening tour dataset, there were `r nrow(bigrams_filtered)` instances of meaningful bigrams.
+
+```{r bigrams, echo = FALSE}
+datatable(bigrams_filtered[, c(1,3,4,5)],
+          rownames = FALSE,
+          colnames = c('Dept.', 'Statement', 'Word 1', 'Word 2'),
+          caption = 'Table 3. Example bigrams from listening tour data.',
+          options = list(dom = 't')
+)
+```
+
+Looking at the most used two-word bigrams might provide some additional clarity around important topics.
+
+```{r bigram_counts, warnings = FALSE, echo = FALSE}
 # lets see the most frequently used bigrams
 bigram_counts%>%
   plot_ly(type = 'bar', y = ~bigram, x = ~n,
-          orientation = 'h')%>%
-  layout(barmode = 'stack')
+          orientation = 'h',
+          marker = list(color = '#005596'))%>%
+  layout(
+    xaxis = list(
+      title = 'Frequency',
+      tickfont = tkf,
+      titlefont = tlf,
+      showgrid = FALSE,
+      linewidth = 1
+    ),
+    yaxis = list(
+      title = 'Bigram',
+      titlefont = tlf,
+      tickfont = tkf,
+      showticklabels = FALSE
+    ),
+    title = 'Top 10 Most Common Bigrams',
+    titlefont = list(color = 'black', size = 16)
+  )%>%
+  add_annotations(
+    text = ~bigram,
+    showarrow = FALSE,
+    x = ~n,
+    xanchor = 'right',
+    font = list(color = 'white')
+  )
 ```
 
+The themes emerging based on the most common two-word phrases used during the listening tour are clearer. The working group will likely only take up 2 or 3 areas around which we will develop projects and initiatives, so how might we prioritize this list?
+
+In addition to the raw frequency, it could be informative to see how these terms were distributed among departments. We can do this by plotting the number of departments that used a term against the overall frequency of that term. Areas that Defenders may want to prioritize will be mentioned frequently and by many departments.
+
+```{r bigram_deptfreq, echo = FALSE, warning = FALSE, error = FALSE}
+lapply(bigram_counts$bigram, function(term){
+  vec <- dept_importance(dat, term)
+  return(data.frame(bigram = term, total = vec[1], depts = vec[2]))
+  })%>%
+  bind_rows()%>%
+  plot_ly(type = 'scatter', mode = 'markers',
+          marker = list(color = '00000000'),
+          x = ~total, y = ~depts)%>%
+  add_annotations(text = bigram_counts$bigram,
+                  font = list(size = 12, color= 'black'),
+                  showarrow = TRUE,
+                  arrowcolor = 'white',
+                  xanchor = 'center',
+                  arrowhead = 0,
+                  ax = c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                  ay = c(20, -20, 0, 30, 0, 0, -30, 0, 10, -10 ))%>%
+  layout(
+    xaxis = list(title = 'Term frequency',
+                 titlefont = tlf,
+                 tickfont = tkf,
+                 showgrid = FALSE,
+                 range = c(0,5)),
+    yaxis = list(title = '# Departments',
+                 titlefont = tlf,
+                 tickfont = tkf,
+                 showgrid = FALSE,
+                 range = c(0, 5))
+  )
+```
+
+In fact, taking the bigrams that appear in the top right portion of this plot would provide a solid definition of major domains in which Defenders could focus our DEIJ efforts. Lets examine the responses from which these phrases originated to get some context. For example:
+
+```{r bigram_phrases, echo = FALSE, eval = TRUE, warning = FALSE, error = FALSE}
+filter(dat, grepl("social media", text))%>%
+  select(Department, text)%>%
+  datatable(
+          rownames = FALSE,
+          colnames = c('Dept.', 'Satement'),
+          caption = 'Table 4. Responses including "social media"',
+          options = list(
+            dom = 't'
+          ))
+```
+
+In theory, we can perform a clusering analysis for bigrams as well. Unfortunately, these clustering algorithms failed to converge using bigrams. This is likely because these kinds of analyses usually require large data sets, and the `r nrow(bigrams_filtered)` bigrams recorded were insufficient.
+
+However, Just by examining the statements associated with the most important bigrams, we could formulate four areas of focus as follows:
+
+1. Initiating a paid internship program
+2. Engaging and working with tribal governments
+2. Using social media to engage more diverse audiences
+4. Defining equitable hiring protocols and providing training
+
+## Conclusion
+
+Natural Language Processing is a useful tool for making sense of written text. These techniques still require some human interpretation, but by using these techniques we can more quickly filter through to extract the most salient terms, sentiments, and themes.  Using automated processes also provides a replicable method for identifying themes and priorities in the future, should Defenders conduct similar or more extended types of social response data.
+
+```{r bigram_k, warnings = FALSE, echo = FALSE}
+# avg_sil <- sapply(2:20, function(x){silhouette_test(x, bigram_dtm)})
+# 
+# plot_ly(type = 'scatter', mode = 'lines', x = 2:20, y = avg_sil)%>%
+#   layout(yaxis = list(title = 'Silhouette score', range = c(0, 0.5)))
+# 
+# k <- 9
+```
+
+```{r bigram_lda, warnings = FALSE, echo = FALSE}
+# bigram_lda <- LDA(bigram_dtm, k = k, method = "GIBBS", control = list(seed = seed))
+# 
+# bigram_betas <- tidy(bigram_lda, matrix = 'beta')
+# 
+# bigram_topic_terms <- top_terms_per_topic(bigram_lda, 7)%>%
+#   group_by(topic)%>%arrange(sort(beta))
+# 
+# subplot(lapply(unique(bigram_topic_terms$topic), function(x){
+#   plot_ly(data = filter(bigram_topic_terms, topic == x)%>%
+#             mutate(term = reorder(term, beta)),
+#           type = 'bar',
+#           orientation = 'h',
+#           y = ~term, x = ~beta,
+#           name = x)%>%
+#     layout(xaxis = list(showgrid = FALSE,
+#                         linewidth = 1,
+#                         range = c(0, max(bigram_betas$beta)),
+#                         showgrid = FALSE,
+#                         linewidth = 1),
+#            yaxis = list(showticklabels = FALSE))%>%
+#     add_annotations(
+#       text = ~term,
+#       x = ~beta, xanchor = 'right',
+#       showarrow = FALSE,
+#       font = list(color = 'white')
+#     )
+#   }),
+#   nrows = (k%/%2) + (k%%2))%>%
+#   layout(title = paste('Bigrams (k = ', k, ')', sep = ""))
+
+```

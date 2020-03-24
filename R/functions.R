@@ -63,3 +63,15 @@ silhouette_test <- function(k, d){
   ss <- silhouette(km$cluster, dist(d))
   return(mean(ss[,3]))
 }
+
+#' return the frequency and number of departments for a term
+#' @param dt data frame containing textual data
+#' @param term character string of term to quantify
+#' @return vector with the number of responses containing the term (x) and
+#' the number of different departments providing those responses (y)
+dept_importance <- function(dt, term){
+  filt <- filter(dt, Category != "Efforts", grepl(term, text))
+  x <- nrow(filt)
+  y <- length(unique(filt$Department))
+  return(c(x,y))
+}

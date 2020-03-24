@@ -21,7 +21,7 @@ unhelpful_words <- c("defenders",
 # TOKENIZE DATA
 # single words
 dat_tokenized <- dat %>%
-  unnest_tokens(word, text) %>%
+  tidytext::unnest_tokens(word, text) %>%
   anti_join(stop_words) %>%
   distinct() %>%
   filter(!word %in% unhelpful_words) %>%
@@ -43,7 +43,7 @@ dt_mat <- dat_tokenized%>%
   mutate(Statement = as.character(Statement))%>%
   count(Statement, word, sort = TRUE)%>%
   ungroup()%>%
-  cast_dtm(document = Statement, term = word, value = n)
+  tidytext::cast_dtm(document = Statement, term = word, value = n)
 
 inspect(dt_mat[1:4, 1:8])
 
@@ -64,7 +64,7 @@ plot_ly(type = 'scatter', mode = 'lines', x = 2:20, y = avg_sil)%>%
 
 k <- 5
 
-lda <- LDA(dt_mat, k = k, method = "GIBBS", control = list(seed = seed))
+lda <- topicmodels::LDA(dt_mat, k = k, method = "GIBBS", control = list(seed = seed))
 
 # return the probability per term of inclusion in each topic
 betas <- tidy(lda, matrix = 'beta')
@@ -80,17 +80,28 @@ subplot(lapply(unique(topic_terms$topic), function(x){
           orientation = 'h',
           name = x)%>%
     layout(xaxis = list(range = c(0, max(betas$beta))),
-           yaxis = list(tickfont = list(size = 8)))
-}),nrows = (k%/%2)+1)%>%
+           yaxis = list(tickfont = list(size = 8),
+                        showticklabels = FALSE))%>%
+    add_annotations(
+      text = ~term,
+      x = ~beta, xanchor = 'right',
+      font = list(color = 'white'),
+      showarrow = FALSE
+    )
+  }),
+  nrows = (k%/%2)+1)%>%
   layout(title = paste('Terms (k = ', k, ')', sep = ""))
 
 # Calculate TF-IDF
 dat_tokenized%>%
+  filter(Category != 'Efforts')%>%
   count(Statement, word)%>%
   ungroup()%>%
   bind_tf_idf(term = word, document = Statement, n = n)%>%
-  mutate(word = reorder(word, tf_idf))%>%
+  ungroup()%>%
+  arrange(desc(tf_idf))%>%
   top_n(10, tf_idf)%>%
+  mutate(word = reorder(word, tf_idf))%>%
   plot_ly(type = 'bar', orientation = 'h', x = ~tf_idf, y = ~word)
 
 # BIGRAMS
@@ -106,7 +117,7 @@ bigrams_separated <- bigrams %>%
 bigrams_filtered <- bigrams_separated %>%
   filter(!word1 %in% stop_words$word, !word2 %in% stop_words$word) %>%
   filter(!word1 %in% unhelpful_words, !word2 %in% unhelpful_words)%>%
-  filter(word1 != word2)
+  filter(word1 != word2, Category != 'Efforts')
 
 # rejoin bigrams and tally by department
 bigram_counts <- bigrams_filtered %>%
@@ -153,7 +164,7 @@ avg_sil <- sapply(2:20, function(x){silhouette_test(x, bigram_dtm)})
 plot_ly(type = 'scatter', mode = 'lines', x = 2:20, y = avg_sil)%>%
   layout(yaxis = list(title = 'Silhouette score', range = c(0, 0.5)))
 #plot(2:20, type='b', avg_sil, xlab='Number of clusters', ylab='Average Silhouette Scores', frame=FALSE)
-k <- 9
+k <- 5
 
 bigram_lda <- LDA(bigram_dtm, k = k, method = "GIBBS", control = list(seed = seed))
 
@@ -228,7 +239,7 @@ subplot(lapply(unique(anno_topic_terms$topic), function(x){
 # calculate average silhouette value for a series of ks
 avg_sil <- sapply(2:20, function(x){silhouette_test(x, dt_mat)})
 plot(2:20, type='b', avg_sil, xlab='Number of clusters', ylab='Average Silhouette Scores', frame=FALSE)
-k <- 4
+k <- 3
 # cluster terms according to k
 km <- kmeans(dt_mat, k)
 # grab the top 10 words most strongly associated with each topic
