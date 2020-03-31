@@ -1,0 +1,118 @@
+---
+title: "DEIJ Listening Tour Themes"
+author: "Michael Evans"
+date: "March 30, 2020"
+output: word_document
+always_allow_html: yes
+---
+
+```{r setup, include=FALSE}
+library(cleanNLP)
+library(cluster)
+library(dplyr)
+library(DT)
+library(plotly)
+library(tidytext)
+library(tidyr)
+library(tm)
+library(topicmodels)
+
+source(file = 'R/functions.R')
+load('data/data.Rdata')
+#dat <- readRDS(file = 'data/data.rds')
+
+# define some styling parameters for graphs
+tlf <- list(color = 'black', size = 14)
+tkf <- list(color = 'black', size = 12)
+
+# set seed for repeatability
+seed <- 1024
+```
+
+## Background
+
+The DEIJ working group previously conducted an organizational 'listening tour' in which members spoke with staff in each of Defenders' departments and field offices to understand the current landscape of ongoing efforts related to Diversity, Equity, Inclusion, and Justice and identify where staff saw opportunities for growth in the organization. Defenders' staff had a lot of constructive thoughts and distilling these ideas into actionable themes quickly became a challenge.
+
+To help extract cohesive themes from these responses, we decided to try using a field of machine learning called 'Natural Language Processing' (NLP). The discipline of NLP covers a collection of techniques to automate the extraction of themes, sentiments, and associations from text. The working groups’ goal is to use these insights to help identify focal areas in which Defenders can improve our DEIJ practices. The DEIJ working group will use this insight to help inform the initiatives we will focus on in the coming year.
+
+## Our Findings:
+
+Altogether, we collected `r nrow(dat)` ‘statements’ from Defenders staff over the course of the listening tour. After processing and standardizing these statements, we were able to distill four focal areas:
+
+1.	Initiating a paid internship program
+2.	Engaging and working with tribal governments
+3.	Using social media to engage more diverse audiences
+4.	Defining equitable hiring protocols and providing training
+
+While there were several analyses and some interpretation needed to arrive at this list, the process can best be visualized by the frequency of two-word phrases, or ‘bigrams’:
+
+```{r bigram_counts, warnings = FALSE, echo = FALSE}
+# lets see the most frequently used bigrams
+bigram_counts%>%
+  plot_ly(type = 'bar', y = ~bigram, x = ~n,
+          orientation = 'h',
+          marker = list(color = '#005596'))%>%
+  layout(
+    xaxis = list(
+      title = 'Frequency',
+      tickfont = tkf,
+      titlefont = tlf,
+      showgrid = FALSE,
+      linewidth = 1
+    ),
+    yaxis = list(
+      title = 'Bigram',
+      titlefont = tlf,
+      tickfont = tkf,
+      showticklabels = FALSE
+    ),
+    title = 'Top 10 Most Common Bigrams',
+    titlefont = list(color = 'black', size = 16)
+  )%>%
+  add_annotations(
+    text = ~bigram,
+    showarrow = FALSE,
+    x = ~n,
+    xanchor = 'right',
+    font = list(color = 'white')
+  )
+```
+
+These were the most frequently occurring two-word phrases (that consisted of meaningful words) that appeared across all the responses gathered during the listening tour. These phrases are helpful because each represents an intuitive concept. To get an even better sense of the relative importance of these concepts we measured not only how often each bigram was mentioned overall, but how many different departments mentioned them.
+
+```{r bigram_deptfreq, echo = FALSE, warning = FALSE, error = FALSE}
+lapply(bigram_counts$bigram, function(term){
+  vec <- dept_importance(dat, term)
+  return(data.frame(bigram = term, total = vec[1], depts = vec[2]))
+  })%>%
+  bind_rows()%>%
+  plot_ly(type = 'scatter', mode = 'markers',
+          marker = list(color = '00000000'),
+          x = ~total, y = ~depts)%>%
+  add_annotations(text = bigram_counts$bigram,
+                  font = list(size = 12, color= 'black'),
+                  showarrow = TRUE,
+                  arrowcolor = 'white',
+                  xanchor = 'center',
+                  arrowhead = 0,
+                  ax = c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                  ay = c(20, -20, 0, 30, 0, 0, -30, 0, 10, -10 ))%>%
+  layout(
+    xaxis = list(title = 'Term frequency',
+                 titlefont = tlf,
+                 tickfont = tkf,
+                 showgrid = FALSE,
+                 range = c(0,5)),
+    yaxis = list(title = '# Departments',
+                 titlefont = tlf,
+                 tickfont = tkf,
+                 showgrid = FALSE,
+                 range = c(0, 5))
+  )
+```
+
+Taking the bigrams that appear in the top right portion of this plot provided us with a solid definition of major domains in which Defenders could focus our DEIJ efforts: paid internships; social media, tribal governments/indigenous communities; hiring practices.
+
+## Conclusion
+
+We were able to use Natural Language Processing to quickly and objectively filter through thoughts provided by Defenders' staff during the DEIJ listening tour to extract the most salient terms, sentiments, and themes. Using automated processes provides a replicable method for identifying themes and priorities in the future, should Defenders conduct similar or more extended social surveys. The four themes that we identified will help guide the DEIJ working group as we craft a strategy and list of objectives for our work.
