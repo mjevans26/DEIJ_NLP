@@ -1,7 +1,7 @@
 ---
-title: "Exploring DEIJ Opportunities with Machine Learning"
+title: "Applying machine learning to improve Diversity, Equity, Inclusion & Justice at Defenders"
 author: "Michael Evans"
-date: "March 2, 2020"
+date: "`r Sys.Date()`"
 output: html_document
 ---
 
@@ -32,9 +32,13 @@ seed <- 1024
 
 Defenders of Wildlife is committed to becoming a more diverse, equitable, and inclusive organization and strives to be a leader in these efforts among environmental NGOs. The diversity, equity, inclusion and justice (DEIJ) working group was formed to help guide Defenders' efforts along this path.
 
-As a first step, the DEIJ working group conducted an organizational 'listening tour' in which members spoke with staff in each of Defenders' departments and field offices to understand the landscape of current efforts and identify where staff saw opportunities for growth in the organization. Defenders' staff had a lot of constructive thoughts, and distilling these ideas into actionable themes quickly became a challenge.
+As a first step, the DEIJ working group conducted an organizational 'listening tour.' DEIJ Working Group members spoke with staff in each of Defenders’ departments and field offices to catalogue ongoing efforts related to DEIJ and identify where staff saw opportunities for growth in the organization. Defenders' staff had many constructive thoughts, and distilling these ideas into actionable themes quickly became a challenge.
 
-To help with the theme-extraction process, we decided to try using a field of machine learning called 'Natural Language Processing' (NLP). The discipline of NLP covers a collection of techniques to automate the extraction of themes, sentiments, and associations from text. Our goal is to use these insights to help identify cohesive themes in the opportunities for improvement in Defenders' DEIJ practices as expressed by staff across departments. The DEIJ working group will use this insight to identify and design the initiatives we will focus on in the coming year.
+To help extract common themes from these responses, we decided to use a field of machine learning called ‘Natural Language Processing’ (NLP). The discipline of NLP covers a collection of techniques to automate the extraction of themes, sentiments, and associations from text. Our goal was to use this kind of analysis to help identify focal areas in which Defenders can advance our DEIJ practices in the coming year. This document will:
+
+1. Describe how we used and analyze the listening tour responses
+2. Present and interpret outputs of different NLP analyses
+3. Identify the final set of common themes extracted from the listening tour
 
 ## Data processing
 
@@ -105,17 +109,17 @@ dat_tokenized%>%
   )
 ```
 
-These terms give us some idea of the thematic concepts expressed in the listening tour, such as engagement with communities and training.
+These terms give us some idea of the common themes expressed in the listening tour, such as engagement with communities and training.
 
 ## Cluster analysis
 
-The frequencies of terms in listening tour responses has given us a good idea of where opportunities for DEIJ improvements across Defenders might exist.  A more sophisticated analysis is to use the same data and automatically identify inherent thematic clusters. There are several techniques available for this task, and each uses the frequency of co-occurrence of different terms across responses to cluster terms together. We can then interpret the theme represented by each cluster by examining the words they contain.
+The frequencies of terms in listening tour responses has given us a good idea of where opportunities for DEIJ improvements across Defenders might exist.  A more sophisticated analysis uses the same data to automatically identify clusters of terms. There are several techniques available for this task, and each uses the frequency of co-occurrence of different terms across responses to cluster terms together. We can then interpret the theme represented by each cluster by examining the words they contain.
 
 *Note: these methods usually require large (>10,000 records) datasets, and so our use here with `r nrow(dat_tokenized)` data points is somewhat experimental.*
 
 ### How many themes?
 
-But how many themes are present in the responses? The first step in this analysis is to group our data into progressively greater number of clusters, and use a measure of cohesion to see which is most supported. Here we use the silhouette test, which compares the dissimilarity within clusters to that between clusters. Lower scores indicate stronger support, and we choose the cluster number (k) at which the rate of decline plateaus. This provides a balance between likelihood and simplicity of interpretation.
+But how many themes are present in the responses? The first step in this analysis is to group our data into progressively greater number of clusters, and use a measure of cohesion to see which number is most supported. Here we use the silhouette test, which compares the dissimilarity within clusters to that between clusters. Lower scores indicate stronger support, and we choose the cluster number (k) at which the rate of decline plateaus. This provides a balance between likelihood and simplicity of interpretation.
 
 ```{r k, warnings = FALSE, echo = FALSE}
 # calculate average silhouette value for a series of ks
@@ -168,11 +172,11 @@ subplot(lapply(unique(topic_terms$topic), function(i){
   layout(title = paste('Terms (k = ', k, ')', sep = ""))
 ```
 
-Clustering analyses require human interpretation to make sense of the clusters that emerge, based on the words they contain. In this small dataset, some of the clusters are more ambiguous than others - however there appear to be several clear themes. For instance, Topic 1 contains terms related to community outreach and engagmenent. Topic 7 seems to include words related to personnel practices, and Topic 6 encapsulates expanding Defenders' audience. Seeing the terms that co-occur frequently in staff responses is a starting point for understanding the common themes being expressed.
+Clustering analyses require human interpretation to make sense of the clusters that emerge based on the words they contain. In this small dataset, some of the clusters are more ambiguous than others - however there appear to be several clear themes. For instance, Topic 1 contains terms related to community outreach and engagmenent. Topic 7 seems to include words related to personnel practices, and Topic 6 encapsulates expanding Defenders' audience. Seeing the terms that co-occur frequently in staff responses is a starting point for understanding the common themes that were expressed.
 
 ## Two-word phrases
 
-Thus far, we've only looked at single terms to understand the topics present in our listening tour responses. It can also be informative to examine two word phrases, or bigrams. In the listening tour dataset, there were `r nrow(bigrams_filtered)` instances of meaningful bigrams.
+Thus far, we've only looked at single terms to understand the topics present in the listening tour responses. It can also be informative to examine two word phrases, or bigrams. In the listening tour dataset, there were `r nrow(bigrams_filtered)` instances of meaningful bigrams.
 
 ```{r bigrams, echo = FALSE}
 datatable(bigrams_filtered[, c(1,3,4,5)],
@@ -219,7 +223,7 @@ bigram_counts%>%
 
 The themes emerging based on the most common two-word phrases used during the listening tour are clearer. The working group will likely only take up 2 or 3 areas around which we will develop projects and initiatives, so how might we prioritize this list?
 
-In addition to the raw frequency, it could be informative to see how these terms were distributed among departments. We can do this by plotting the number of departments that used a term against the overall frequency of that term. Areas that Defenders may want to prioritize will be mentioned frequently and by many departments.
+In addition to the raw frequency, it could be informative to see how these terms were distributed among departments. We can do this by plotting the number of departments that used a term against the overall frequency of that term. Ideas that Defenders may want to prioritize will be mentioned frequently and by many departments.
 
 ```{r bigram_deptfreq, echo = FALSE, warning = FALSE, error = FALSE}
 lapply(bigram_counts$bigram, function(term){
@@ -252,7 +256,7 @@ lapply(bigram_counts$bigram, function(term){
   )
 ```
 
-In fact, taking the bigrams that appear in the top right portion of this plot would provide a solid definition of major domains in which Defenders could focus our DEIJ efforts. Lets examine the responses from which these phrases originated to get some context. For example:
+In fact, taking the bigrams that appear in the top right portion of this plot would provides common themes on which Defenders could focus expanding and improving DEIJ practices. Lets examine the responses from which these phrases originated to get some context. For example:
 
 ```{r bigram_phrases, echo = FALSE, eval = TRUE, warning = FALSE, error = FALSE}
 filter(dat, grepl("social media", text))%>%
@@ -268,7 +272,7 @@ filter(dat, grepl("social media", text))%>%
 
 In theory, we can perform a clusering analysis for bigrams as well. Unfortunately, these clustering algorithms failed to converge using bigrams. This is likely because these kinds of analyses usually require large data sets, and the `r nrow(bigrams_filtered)` bigrams recorded were insufficient.
 
-However, Just by examining the statements associated with the most important bigrams, we could formulate four areas of focus as follows:
+However, Just by examining the statements associated with the most important bigrams, we identified:
 
 1. Initiating a paid internship program
 2. Engaging and working with tribal governments
@@ -277,7 +281,7 @@ However, Just by examining the statements associated with the most important big
 
 ## Conclusion
 
-Natural Language Processing is a useful tool for making sense of written text. These techniques still require some human interpretation, but by using these techniques we can more quickly filter through to extract the most salient terms, sentiments, and themes.  Using automated processes also provides a replicable method for identifying themes and priorities in the future, should Defenders conduct similar or more extended types of social response data.
+Natural Language Processing is a useful tool for making sense of written text. These techniques still require some human interpretation, but we were able to use these techniques to quickly filter through a large amount of text and extract the most salient terms, sentiments, and themes.  Using automated processes also provides a replicable method for identifying themes and priorities in the future, should Defenders conduct similar or more extended types of social response data.
 
 ```{r bigram_k, warnings = FALSE, echo = FALSE}
 # avg_sil <- sapply(2:20, function(x){silhouette_test(x, bigram_dtm)})
