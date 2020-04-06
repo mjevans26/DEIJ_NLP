@@ -1,5 +1,5 @@
 ---
-title: "Applying machine learning to improve Diversity, Equity, Inclusion & Justice at Defenders"
+title: "Applying machine learning to advance Diversity, Equity, Inclusion & Justice at Defenders"
 author: "Michael Evans"
 date: "`r Sys.Date()`"
 output: html_document
@@ -28,11 +28,11 @@ tkf <- list(color = 'black', size = 12)
 seed <- 1024
 ```
 
-## Diversity, Equity, Inclusion & Jusctice
+## Diversity, Equity, Inclusion & Justice
 
 Defenders of Wildlife is committed to becoming a more diverse, equitable, and inclusive organization and strives to be a leader in these efforts among environmental NGOs. The diversity, equity, inclusion and justice (DEIJ) working group was formed to help guide Defenders' efforts along this path.
 
-As a first step, the DEIJ working group conducted an organizational 'listening tour.' DEIJ Working Group members spoke with staff in each of Defenders’ departments and field offices to catalogue ongoing efforts related to DEIJ and identify where staff saw opportunities for growth in the organization. Defenders' staff had many constructive thoughts, and distilling these ideas into actionable themes quickly became a challenge.
+As a first step, the DEIJ working group conducted an organizational 'listening tour.' DEIJ Working Group members spoke with staff in each of Defenders’ departments and field offices to catalog ongoing efforts related to DEIJ and identify where staff saw opportunities for growth in the organization. Defenders' staff had many constructive thoughts, and distilling these ideas into actionable themes quickly became a challenge.
 
 To help extract common themes from these responses, we decided to use a field of machine learning called ‘Natural Language Processing’ (NLP). The discipline of NLP covers a collection of techniques to automate the extraction of themes, sentiments, and associations from text. Our goal was to use this kind of analysis to help identify focal areas in which Defenders can advance our DEIJ practices in the coming year. This document will:
 
@@ -49,7 +49,7 @@ For these statements to be useful, we have to pre-process all the raw responses.
 ```{r input_data, echo = FALSE}
 datatable(dat[,c(1,2,4)],
           rownames = FALSE,
-          colnames = c('Dept.', 'Category', 'Satement'),
+          colnames = c('Dept.', 'Category', 'Statement'),
           caption = 'Table 1. Example responses from listening tour',
           options = list(
             dom = 't'
@@ -131,7 +131,7 @@ plot_ly(type = 'scatter', mode = 'lines', x = 2:20, y = avg_sil)%>%
 k <- 7
 ```
 
-This graph tells us that the most likely number of thematic clusters for single terms is `r k`. Assuming `r k` groups, we can use an algorithm called 'Latent Dirichlet Allocation' to assign terms to each of 7 clusers based on how frequenly different terms appear together. Plotting the terms most strongly associated with each cluster gives us an idea of the 'themes' captured in each cluster.
+This graph tells us that the most likely number of thematic clusters for single terms is `r k`. Assuming `r k` groups, we can use an algorithm called 'Latent Dirichlet Allocation' to assign terms to each of 7 clusters based on how frequently different terms appear together. Plotting the terms most strongly associated with each cluster gives us an idea of the 'themes' captured in each cluster.
 
 ```{r lda, warnings = FALSE, echo = FALSE}
 lda <- topicmodels::LDA(dt_mat, k = k, method = "GIBBS", control = list(seed = seed))
@@ -172,7 +172,7 @@ subplot(lapply(unique(topic_terms$topic), function(i){
   layout(title = paste('Terms (k = ', k, ')', sep = ""))
 ```
 
-Clustering analyses require human interpretation to make sense of the clusters that emerge based on the words they contain. In this small dataset, some of the clusters are more ambiguous than others - however there appear to be several clear themes. For instance, Topic 1 contains terms related to community outreach and engagmenent. Topic 7 seems to include words related to personnel practices, and Topic 6 encapsulates expanding Defenders' audience. Seeing the terms that co-occur frequently in staff responses is a starting point for understanding the common themes that were expressed.
+Clustering analyses require human interpretation to make sense of the clusters that emerge based on the words they contain. In this small dataset, some of the clusters are more ambiguous than others - however there appear to be several clear themes. For instance, Topic 1 contains terms related to community outreach and engagement. Topic 7 seems to include words related to personnel practices, and Topic 6 encapsulates expanding Defenders' audience. Seeing the terms that co-occur frequently in staff responses is a starting point for understanding the common themes that were expressed.
 
 ## Two-word phrases
 
@@ -256,21 +256,21 @@ lapply(bigram_counts$bigram, function(term){
   )
 ```
 
-In fact, taking the bigrams that appear in the top right portion of this plot would provides common themes on which Defenders could focus expanding and improving DEIJ practices. Lets examine the responses from which these phrases originated to get some context. For example:
+In fact, taking the bigrams that appear in the top right portion of this plot would provide common themes on which Defenders could focus expanding and improving DEIJ practices. Let's examine the responses from which these phrases originated to get some context. For example:
 
 ```{r bigram_phrases, echo = FALSE, eval = TRUE, warning = FALSE, error = FALSE}
 filter(dat, grepl("social media", text))%>%
   select(Department, text)%>%
   datatable(
           rownames = FALSE,
-          colnames = c('Dept.', 'Satement'),
+          colnames = c('Dept.', 'Statement'),
           caption = 'Table 4. Responses including "social media"',
           options = list(
             dom = 't'
           ))
 ```
 
-In theory, we can perform a clusering analysis for bigrams as well. Unfortunately, these clustering algorithms failed to converge using bigrams. This is likely because these kinds of analyses usually require large data sets, and the `r nrow(bigrams_filtered)` bigrams recorded were insufficient.
+In theory, we can perform a clustering analysis for bigrams as well. Unfortunately, these clustering algorithms failed to converge using bigrams. This is likely because these kinds of analyses usually require large data sets, and the `r nrow(bigrams_filtered)` bigrams recorded were insufficient.
 
 However, Just by examining the statements associated with the most important bigrams, we identified:
 
